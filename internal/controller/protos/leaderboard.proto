@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package leaderboard;
+
+option go_package = "leaderboard";
+
+service LeaderboardService {
+  rpc ListScore(ListScoreRequest) returns (ListScoreResponse) {}
+  rpc SaveScore(stream SaveScoreRequest) returns (stream SaveScoreResponse) {}
+}
+
+message ListScoreRequest {
+
+}
+
+message ListScoreResponse {
+
+}
+
+message SaveScoreRequest {
+
+}
+
+message SaveScoreResponse {
+
+}

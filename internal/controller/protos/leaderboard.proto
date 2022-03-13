@@ -2,25 +2,43 @@ syntax = "proto3";
 
 package leaderboard;
 
-option go_package = "leaderboard";
+option go_package = "internal/controller/protos;leaderboard";
 
 service LeaderboardService {
   rpc ListScore(ListScoreRequest) returns (ListScoreResponse) {}
   rpc SaveScore(stream SaveScoreRequest) returns (stream SaveScoreResponse) {}
 }
 
-message ListScoreRequest {
+enum TimePeriod {
+  TIME_PERIOD_UNSPECIFIED = 0;
+  TIME_PERIOD_MONTH = 1;
+  TIME_PERIOD_ALL = 2;
+}
 
+message ListScoreRequest {
+  optional string name = 1;
+  optional int64 page = 2;
+  optional TimePeriod period = 3;
 }
 
 message ListScoreResponse {
+  repeated PlayerScore results = 1;
+  repeated PlayerScore around_me = 2;
+  int64 page = 3;
+}
 
+message PlayerScore {
+  string name = 1;
+  int64 score = 2;
+  int64 rank = 3;
 }
 
 message SaveScoreRequest {
-
+  string name = 1;
+  int64 score = 2;
 }
 
 message SaveScoreResponse {
-
+  string name = 1;
+  int64 rank = 2;
 }

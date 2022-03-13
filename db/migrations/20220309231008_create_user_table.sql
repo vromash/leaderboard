@@ -3,11 +3,13 @@
 CREATE TABLE "user"
 (
     id   BIGSERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL
+    name VARCHAR(255) UNIQUE NOT NULL
 );
+CREATE INDEX "user_name" ON "user" ("name");
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
+DROP INDEX "user_name";
 DROP TABLE "user"
 -- +goose StatementEnd

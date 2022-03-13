@@ -5,48 +5,55 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
 const createScore = `-- name: CreateScore :exec
 INSERT INTO "score" ("score", "user_id")
-VALUES ($1, $2)
+VALUES ($1, (SELECT "id" FROM "user" WHERE "name" = $2))
 `
 
 type CreateScoreParams struct {
-	Score  int64
-	UserID int64
+	Score    int64
+	UserName string
 }
 
 func (q *Queries) CreateScore(ctx context.Context, arg CreateScoreParams) error {
-	_, err := q.db.ExecContext(ctx, createScore, arg.Score, arg.UserID)
+	_, err := q.db.ExecContext(ctx, createScore, arg.Score, arg.UserName)
 	return err
 }
 
 const createUser = `-- name: CreateUser :exec
+
 INSERT INTO "user" ("name")
 VALUES ($1)
 `
 
+//- User ---
 func (q *Queries) CreateUser(ctx context.Context, name string) error {
 	_, err := q.db.ExecContext(ctx, createUser, name)
 	return err
 }
 
 const getAllScores = `-- name: GetAllScores :many
-SELECT score.id, score, user_id, u.id, name
-FROM "score"
-         LEFT JOIN "user" u on u.id = score.user_id
-ORDER BY "score"
+
+SELECT sub.name, sub.score, sub.rank
+FROM (
+         SELECT score,
+                u.name,
+                ROW_NUMBER() OVER (ORDER BY "score") AS rank
+         FROM "score"
+                  LEFT JOIN "user" u ON u.id = score.user_id
+     ) AS sub
 `
 
 type GetAllScoresRow struct {
-	ID     int64
-	Score  int64
-	UserID int64
-	ID_2   int64
-	Name   string
+	Name  sql.NullString
+	Score int64
+	Rank  int64
 }
 
+//- Score ---
 func (q *Queries) GetAllScores(ctx context.Context) ([]GetAllScoresRow, error) {
 	rows, err := q.db.QueryContext(ctx, getAllScores)
 	if err != nil {
@@ -56,13 +63,78 @@ func (q *Queries) GetAllScores(ctx context.Context) ([]GetAllScoresRow, error) {
 	var items []GetAllScoresRow
 	for rows.Next() {
 		var i GetAllScoresRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Score,
-			&i.UserID,
-			&i.ID_2,
-			&i.Name,
-		); err != nil {
+		if err := rows.Scan(&i.Name, &i.Score, &i.Rank); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getScoreByPlayerName = `-- name: GetScoreByPlayerName :one
+SELECT sub.name, sub.score, sub.rank
+FROM (
+         SELECT score,
+                u.name,
+                ROW_NUMBER() OVER (ORDER BY "score") AS rank
+         FROM "score"
+                  LEFT JOIN "user" u ON u.id = score.user_id
+     ) AS sub
+WHERE sub.user_id = (SELECT "id" FROM "user" WHERE "name" = $1::varchar)
+`
+
+type GetScoreByPlayerNameRow struct {
+	Name  sql.NullString
+	Score int64
+	Rank  int64
+}
+
+func (q *Queries) GetScoreByPlayerName(ctx context.Context, userName string) (GetScoreByPlayerNameRow, error) {
+	row := q.db.QueryRowContext(ctx, getScoreByPlayerName, userName)
+	var i GetScoreByPlayerNameRow
+	err := row.Scan(&i.Name, &i.Score, &i.Rank)
+	return i, err
+}
+
+const getScoresInRange = `-- name: GetScoresInRange :many
+SELECT sub.name, sub.score, sub.rank
+FROM (
+         SELECT score,
+                u.name,
+                ROW_NUMBER() OVER (ORDER BY "score") AS rank
+         FROM "score"
+                  LEFT JOIN "user" u ON u.id = score.user_id
+     ) AS sub
+WHERE sub.rank BETWEEN $1::bigint AND $2::bigint
+`
+
+type GetScoresInRangeParams struct {
+	RankFrom int64
+	RankTo   int64
+}
+
+type GetScoresInRangeRow struct {
+	Name  sql.NullString
+	Score int64
+	Rank  int64
+}
+
+func (q *Queries) GetScoresInRange(ctx context.Context, arg GetScoresInRangeParams) ([]GetScoresInRangeRow, error) {
+	rows, err := q.db.QueryContext(ctx, getScoresInRange, arg.RankFrom, arg.RankTo)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetScoresInRangeRow
+	for rows.Next() {
+		var i GetScoresInRangeRow
+		if err := rows.Scan(&i.Name, &i.Score, &i.Rank); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -79,15 +151,15 @@ func (q *Queries) GetAllScores(ctx context.Context) ([]GetAllScoresRow, error) {
 const updateScore = `-- name: UpdateScore :exec
 UPDATE "score"
 SET "score" = $1
-WHERE "user_id" = $2
+WHERE "user_id" = (SELECT "id" FROM "user" WHERE "name" = $2)
 `
 
 type UpdateScoreParams struct {
-	Score  int64
-	UserID int64
+	Score    int64
+	UserName string
 }
 
 func (q *Queries) UpdateScore(ctx context.Context, arg UpdateScoreParams) error {
-	_, err := q.db.ExecContext(ctx, updateScore, arg.Score, arg.UserID)
+	_, err := q.db.ExecContext(ctx, updateScore, arg.Score, arg.UserName)
 	return err
 }

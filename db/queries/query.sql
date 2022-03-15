@@ -11,7 +11,7 @@ SELECT sub.name, sub.score, sub.rank
 FROM (
          SELECT score,
                 u.name,
-                ROW_NUMBER() OVER (ORDER BY "score") AS rank
+                ROW_NUMBER() OVER (ORDER BY "score" DESC) AS rank
          FROM "score"
                   LEFT JOIN "user" u ON u.id = score.user_id
      ) AS sub;
@@ -21,18 +21,19 @@ SELECT sub.name, sub.score, sub.rank
 FROM (
          SELECT score,
                 u.name,
-                ROW_NUMBER() OVER (ORDER BY "score") AS rank
+                ROW_NUMBER() OVER (ORDER BY "score" DESC) AS rank
          FROM "score"
                   LEFT JOIN "user" u ON u.id = score.user_id
      ) AS sub
 WHERE sub.rank BETWEEN @rank_from::bigint AND @rank_to::bigint;
 
--- name: GetScoreByPlayerName :one
+-- name: GetScoreByPlayerName :many
 SELECT sub.name, sub.score, sub.rank
 FROM (
-         SELECT score,
+         SELECT user_id,
+                score,
                 u.name,
-                ROW_NUMBER() OVER (ORDER BY "score") AS rank
+                ROW_NUMBER() OVER (ORDER BY "score" DESC) AS rank
          FROM "score"
                   LEFT JOIN "user" u ON u.id = score.user_id
      ) AS sub

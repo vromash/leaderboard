@@ -41,7 +41,7 @@ SELECT sub.name, sub.score, sub.rank
 FROM (
          SELECT score,
                 u.name,
-                ROW_NUMBER() OVER (ORDER BY "score") AS rank
+                ROW_NUMBER() OVER (ORDER BY "score" DESC) AS rank
          FROM "score"
                   LEFT JOIN "user" u ON u.id = score.user_id
      ) AS sub
@@ -77,12 +77,13 @@ func (q *Queries) GetAllScores(ctx context.Context) ([]GetAllScoresRow, error) {
 	return items, nil
 }
 
-const getScoreByPlayerName = `-- name: GetScoreByPlayerName :one
+const getScoreByPlayerName = `-- name: GetScoreByPlayerName :many
 SELECT sub.name, sub.score, sub.rank
 FROM (
-         SELECT score,
+         SELECT user_id,
+                score,
                 u.name,
-                ROW_NUMBER() OVER (ORDER BY "score") AS rank
+                ROW_NUMBER() OVER (ORDER BY "score" DESC) AS rank
          FROM "score"
                   LEFT JOIN "user" u ON u.id = score.user_id
      ) AS sub
@@ -95,11 +96,27 @@ type GetScoreByPlayerNameRow struct {
 	Rank  int64
 }
 
-func (q *Queries) GetScoreByPlayerName(ctx context.Context, userName string) (GetScoreByPlayerNameRow, error) {
-	row := q.db.QueryRowContext(ctx, getScoreByPlayerName, userName)
-	var i GetScoreByPlayerNameRow
-	err := row.Scan(&i.Name, &i.Score, &i.Rank)
-	return i, err
+func (q *Queries) GetScoreByPlayerName(ctx context.Context, userName string) ([]GetScoreByPlayerNameRow, error) {
+	rows, err := q.db.QueryContext(ctx, getScoreByPlayerName, userName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetScoreByPlayerNameRow
+	for rows.Next() {
+		var i GetScoreByPlayerNameRow
+		if err := rows.Scan(&i.Name, &i.Score, &i.Rank); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getScoresInRange = `-- name: GetScoresInRange :many
@@ -107,7 +124,7 @@ SELECT sub.name, sub.score, sub.rank
 FROM (
          SELECT score,
                 u.name,
-                ROW_NUMBER() OVER (ORDER BY "score") AS rank
+                ROW_NUMBER() OVER (ORDER BY "score" DESC) AS rank
          FROM "score"
                   LEFT JOIN "user" u ON u.id = score.user_id
      ) AS sub

@@ -68,7 +68,9 @@ func (r *DefaultScoreRepo) GetInRange(from, to int64) ([]*Score, error) {
 }
 
 func (r *DefaultScoreRepo) GetScoreByPlayerName(name string) (*Score, error) {
-	row, err := r.dbProvider.Queries.GetScoreByPlayerName(
+	// Player name is unique, so query result will be either empty array or an array with 1 element.
+	// This way it's possible to detect if score (and user) exists without getting an error.
+	rows, err := r.dbProvider.Queries.GetScoreByPlayerName(
 		context.Background(),
 		name,
 	)
@@ -76,10 +78,14 @@ func (r *DefaultScoreRepo) GetScoreByPlayerName(name string) (*Score, error) {
 		return nil, err
 	}
 
+	if len(rows) == 0 {
+		return nil, nil
+	}
+
 	return &Score{
-		Name:  row.Name.String,
-		Score: row.Score,
-		Rank:  row.Rank,
+		Name:  rows[0].Name.String,
+		Score: rows[0].Score,
+		Rank:  rows[0].Rank,
 	}, nil
 }
 

@@ -3,11 +3,13 @@ module main
 go 1.17
 
 require (
+	github.com/go-test/deep v1.0.8
 	github.com/lib/pq v1.10.4
 	github.com/rs/zerolog v1.26.1
 	github.com/spf13/viper v1.9.0
 	google.golang.org/grpc v1.40.0
 	google.golang.org/protobuf v1.27.1
+	zgo.at/zcache v1.0.0
 )
 
 require (

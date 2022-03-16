@@ -1,8 +1,12 @@
 package score
 
 import (
+	"fmt"
+	"math"
+
 	"github.com/rs/zerolog/log"
 
+	"main/internal/state/config"
 	"main/internal/state/ctx"
 	"main/internal/storage/db/repository"
 )
@@ -11,8 +15,90 @@ type ScoreService struct {
 	appCtx *ctx.AppContext
 }
 
+type ScoreList struct {
+	PagedScore        []*repository.Score
+	ScoreAroundPlayer []*repository.Score
+}
+
 func NewScoreService(appCtx *ctx.AppContext) *ScoreService {
 	return &ScoreService{appCtx}
+}
+
+func (s *ScoreService) ListScores(name *string, page int64) (*ScoreList, error) {
+	rankFrom, rankTo := s.getScoreRange(page)
+
+	playerScore, err := s.listPlayerScore(name)
+	if err != nil {
+		return nil, err
+	}
+
+	scoresAtPage, err := s.appCtx.Repo.Score.GetInRange(rankFrom, rankTo)
+	if err != nil {
+		return nil, err
+	}
+
+	scoreAround, err := s.getAroundPlayer(playerScore, rankFrom, rankTo)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ScoreList{scoresAtPage, scoreAround}, nil
+}
+
+func (s *ScoreService) listPlayerScore(name *string) (*repository.Score, error) {
+	if name == nil || *name == "" {
+		return nil, nil
+	}
+
+	playerScore, err := s.appCtx.Repo.Score.GetScoreByPlayerName(*name)
+	if err != nil {
+		return nil, err
+	}
+
+	if playerScore == nil {
+		return nil, fmt.Errorf("user doesn't exist")
+	}
+
+	return playerScore, nil
+}
+
+func (s *ScoreService) getAroundPlayer(
+	playerScore *repository.Score,
+	rankFrom, rankTo int64,
+) ([]*repository.Score, error) {
+	if playerScore == nil {
+		return nil, nil
+	}
+
+	if playerScore.Rank < rankFrom {
+		return nil, nil
+	}
+
+	if playerScore.Rank >= rankFrom &&
+		playerScore.Rank <= rankTo {
+		return nil, nil
+	}
+
+	aroundFrom := playerScore.Rank - 2
+	aroundTo := playerScore.Rank + 2
+
+	scoresAtPage, err := s.appCtx.Repo.Score.GetInRange(aroundFrom, aroundTo)
+	if err != nil {
+		return nil, err
+	}
+
+	return scoresAtPage, nil
+}
+
+func (s *ScoreService) GetMaxPage(allTime bool) (int64, error) {
+	recordNumber, err := s.appCtx.Repo.Score.GetRecordNumber(allTime)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get max page: %w", err)
+	}
+
+	resultsPerPage := config.GetResultsPerPage()
+	maxPage := float64(recordNumber) / float64(resultsPerPage)
+	return int64(math.Ceil(maxPage)), nil
 }
 
 func (s *ScoreService) SetScore(name string, score int64) (*repository.Score, error) {
@@ -56,4 +142,16 @@ func (s *ScoreService) updateScore(name string, score int64) (*repository.Score,
 
 func (s *ScoreService) retrieveScore(name string) (*repository.Score, error) {
 	return s.appCtx.Repo.Score.GetScoreByPlayerName(name)
+}
+
+func (s *ScoreService) getScoreRange(page int64) (from, to int64) {
+	resultsPerPage := config.GetResultsPerPage()
+
+	if page == 1 {
+		return 1, resultsPerPage
+	}
+
+	from = resultsPerPage*(page-1) + 1
+	to = from + resultsPerPage - 1
+	return
 }

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -10,6 +11,20 @@ import (
 )
 
 func SetupConfig() {
+	env := os.Getenv("ENV")
+
+	// Ignore configs directory if it doesn't exist
+	if _, err := os.Stat("configs"); !os.IsNotExist(err) {
+		// Reading config file
+		viper.SetConfigName(env)
+		viper.AddConfigPath("./configs")
+		viper.SetConfigType("yml")
+
+		if err := viper.ReadInConfig(); err != nil {
+			log.Panic().Err(err).Msg("failed to read config file")
+		}
+	}
+
 	// Reading .env file
 	viper.SetConfigName(".env")
 	viper.AddConfigPath("./")
@@ -32,4 +47,10 @@ func SetupLogger() {
 
 		log.Logger = log.Output(output)
 	}
+}
+
+func GetResultsPerPage() int64 {
+	var opt = viper.GetString("results_per_page")
+	resultsPerPage, _ := strconv.ParseInt(opt, 10, 64)
+	return resultsPerPage
 }

@@ -2,15 +2,19 @@
 
 package db
 
-import ()
+import (
+	"time"
+)
 
 type Score struct {
-	ID     int64
-	Score  int64
-	UserID int64
+	ID        int64
+	Score     int64
+	UserID    int64
+	UpdatedAt time.Time
 }
 
 type User struct {
-	ID   int64
-	Name string
+	ID        int64
+	Name      string
+	CreatedAt time.Time
 }

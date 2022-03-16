@@ -11,8 +11,7 @@ service LeaderboardService {
 
 enum TimePeriod {
   TIME_PERIOD_UNSPECIFIED = 0;
-  TIME_PERIOD_MONTH = 1;
-  TIME_PERIOD_ALL = 2;
+  TIME_PERIOD_ALL = 1;
 }
 
 message ListScoreRequest {

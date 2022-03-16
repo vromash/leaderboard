@@ -6,11 +6,12 @@ package db
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
 const createScore = `-- name: CreateScore :exec
 INSERT INTO "score" ("score", "user_id")
-VALUES ($1, (SELECT "id" FROM "user" WHERE "name" = $2))
+VALUES ($1, (SELECT "id" FROM "user" WHERE "name" = $2::varchar))
 `
 
 type CreateScoreParams struct {
@@ -75,6 +76,31 @@ func (q *Queries) GetAllScores(ctx context.Context) ([]GetAllScoresRow, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const getRecordNumber = `-- name: GetRecordNumber :one
+SELECT COUNT(id)
+FROM "score"
+`
+
+func (q *Queries) GetRecordNumber(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getRecordNumber)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const getRecordNumberInTimeRange = `-- name: GetRecordNumberInTimeRange :one
+SELECT COUNT(id)
+FROM "score"
+WHERE "updated_at" > $1::timestamp
+`
+
+func (q *Queries) GetRecordNumberInTimeRange(ctx context.Context, updatedAt time.Time) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getRecordNumberInTimeRange, updatedAt)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const getScoreByPlayerName = `-- name: GetScoreByPlayerName :many
@@ -168,7 +194,7 @@ func (q *Queries) GetScoresInRange(ctx context.Context, arg GetScoresInRangePara
 const updateScore = `-- name: UpdateScore :exec
 UPDATE "score"
 SET "score" = $1
-WHERE "user_id" = (SELECT "id" FROM "user" WHERE "name" = $2)
+WHERE "user_id" = (SELECT "id" FROM "user" WHERE "name" = $2::varchar)
 `
 
 type UpdateScoreParams struct {

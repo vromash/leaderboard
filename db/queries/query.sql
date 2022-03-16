@@ -39,11 +39,20 @@ FROM (
      ) AS sub
 WHERE sub.user_id = (SELECT "id" FROM "user" WHERE "name" = @user_name::varchar);
 
+-- name: GetRecordNumber :one
+SELECT COUNT(id)
+FROM "score";
+
+-- name: GetRecordNumberInTimeRange :one
+SELECT COUNT(id)
+FROM "score"
+WHERE "updated_at" > @updated_at::timestamp;
+
 -- name: CreateScore :exec
 INSERT INTO "score" ("score", "user_id")
-VALUES (@score, (SELECT "id" FROM "user" WHERE "name" = @user_name));
+VALUES (@score, (SELECT "id" FROM "user" WHERE "name" = @user_name::varchar));
 
 -- name: UpdateScore :exec
 UPDATE "score"
 SET "score" = @score
-WHERE "user_id" = (SELECT "id" FROM "user" WHERE "name" = @user_name);
+WHERE "user_id" = (SELECT "id" FROM "user" WHERE "name" = @user_name::varchar);

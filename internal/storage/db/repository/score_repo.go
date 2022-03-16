@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	db_provider "main/internal/storage/db"
 	db "main/internal/storage/db/generated"
@@ -13,6 +14,7 @@ type ScoreRepository interface {
 	GetAll() ([]*Score, error)
 	GetInRange(from, to int64) ([]*Score, error)
 	GetScoreByPlayerName(name string) (*Score, error)
+	GetRecordNumber(allTime bool) (int64, error)
 }
 
 type Score struct {
@@ -87,6 +89,17 @@ func (r *DefaultScoreRepo) GetScoreByPlayerName(name string) (*Score, error) {
 		Score: rows[0].Score,
 		Rank:  rows[0].Rank,
 	}, nil
+}
+
+func (r *DefaultScoreRepo) GetRecordNumber(allTime bool) (int64, error) {
+	if allTime {
+		return r.dbProvider.Queries.GetRecordNumber(context.Background())
+	}
+
+	t := time.Now()
+	monthStart := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.Local)
+
+	return r.dbProvider.Queries.GetRecordNumberInTimeRange(context.Background(), monthStart)
 }
 
 func (r *DefaultScoreRepo) Create(name string, score int64) error {

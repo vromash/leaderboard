@@ -12,9 +12,10 @@ type ScoreRepository interface {
 	Create(name string, score int64) error
 	Update(name string, score int64) error
 	GetAll() ([]*Score, error)
-	GetInRange(from, to int64) ([]*Score, error)
+	GetInRange(from, to int64, maxDate time.Time) ([]*Score, error)
 	GetScoreByPlayerName(name string) (*Score, error)
-	GetRecordNumber(allTime bool) (int64, error)
+	GetScoreByPlayerNameInTimeRange(name string, maxDate time.Time) (*Score, error)
+	GetRecordNumber(maxDate time.Time) (int64, error)
 }
 
 type Score struct {
@@ -45,10 +46,11 @@ func (r *DefaultScoreRepo) GetAll() ([]*Score, error) {
 	return result, nil
 }
 
-func (r *DefaultScoreRepo) GetInRange(from, to int64) ([]*Score, error) {
+func (r *DefaultScoreRepo) GetInRange(from, to int64, maxDate time.Time) ([]*Score, error) {
 	rows, err := r.dbProvider.Queries.GetScoresInRange(
 		context.Background(),
 		db.GetScoresInRangeParams{
+			DateTo:   maxDate,
 			RankFrom: from,
 			RankTo:   to,
 		},
@@ -91,15 +93,33 @@ func (r *DefaultScoreRepo) GetScoreByPlayerName(name string) (*Score, error) {
 	}, nil
 }
 
-func (r *DefaultScoreRepo) GetRecordNumber(allTime bool) (int64, error) {
-	if allTime {
-		return r.dbProvider.Queries.GetRecordNumber(context.Background())
+func (r *DefaultScoreRepo) GetScoreByPlayerNameInTimeRange(name string, maxDate time.Time) (*Score, error) {
+	// Player name is unique, so query result will be either empty array or an array with 1 element.
+	// This way it's possible to detect if score (and user) exists without getting an error.
+	rows, err := r.dbProvider.Queries.GetScoreByPlayerNameInTimeRange(
+		context.Background(),
+		db.GetScoreByPlayerNameInTimeRangeParams{
+			DateTo:   maxDate,
+			UserName: name,
+		},
+	)
+	if err != nil {
+		return nil, err
 	}
 
-	t := time.Now()
-	monthStart := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.Local)
+	if len(rows) == 0 {
+		return nil, nil
+	}
 
-	return r.dbProvider.Queries.GetRecordNumberInTimeRange(context.Background(), monthStart)
+	return &Score{
+		Name:  rows[0].Name.String,
+		Score: rows[0].Score,
+		Rank:  rows[0].Rank,
+	}, nil
+}
+
+func (r *DefaultScoreRepo) GetRecordNumber(maxDate time.Time) (int64, error) {
+	return r.dbProvider.Queries.GetRecordNumberInTimeRange(context.Background(), maxDate)
 }
 
 func (r *DefaultScoreRepo) Create(name string, score int64) error {

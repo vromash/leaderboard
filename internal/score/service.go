@@ -3,6 +3,7 @@ package score
 import (
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/rs/zerolog/log"
 
@@ -24,20 +25,24 @@ func NewScoreService(appCtx *ctx.AppContext) *ScoreService {
 	return &ScoreService{appCtx}
 }
 
-func (s *ScoreService) ListScores(name *string, page int64) (*ScoreList, error) {
+func (s *ScoreService) ListScores(
+	name *string,
+	page int64,
+	maxDate time.Time,
+) (*ScoreList, error) {
 	rankFrom, rankTo := s.getScoreRange(page)
 
-	playerScore, err := s.listPlayerScore(name)
+	playerScore, err := s.listPlayerScore(name, maxDate)
 	if err != nil {
 		return nil, err
 	}
 
-	scoresAtPage, err := s.appCtx.Repo.Score.GetInRange(rankFrom, rankTo)
+	scoresAtPage, err := s.appCtx.Repo.Score.GetInRange(rankFrom, rankTo, maxDate)
 	if err != nil {
 		return nil, err
 	}
 
-	scoreAround, err := s.getAroundPlayer(playerScore, rankFrom, rankTo)
+	scoreAround, err := s.getAroundPlayer(playerScore, rankFrom, rankTo, maxDate)
 	if err != nil {
 		return nil, err
 	}
@@ -45,12 +50,12 @@ func (s *ScoreService) ListScores(name *string, page int64) (*ScoreList, error) 
 	return &ScoreList{scoresAtPage, scoreAround}, nil
 }
 
-func (s *ScoreService) listPlayerScore(name *string) (*repository.Score, error) {
+func (s *ScoreService) listPlayerScore(name *string, maxDate time.Time) (*repository.Score, error) {
 	if name == nil || *name == "" {
 		return nil, nil
 	}
 
-	playerScore, err := s.appCtx.Repo.Score.GetScoreByPlayerName(*name)
+	playerScore, err := s.appCtx.Repo.Score.GetScoreByPlayerNameInTimeRange(*name, maxDate)
 	if err != nil {
 		return nil, err
 	}
@@ -65,6 +70,7 @@ func (s *ScoreService) listPlayerScore(name *string) (*repository.Score, error) 
 func (s *ScoreService) getAroundPlayer(
 	playerScore *repository.Score,
 	rankFrom, rankTo int64,
+	maxDate time.Time,
 ) ([]*repository.Score, error) {
 	if playerScore == nil {
 		return nil, nil
@@ -82,7 +88,7 @@ func (s *ScoreService) getAroundPlayer(
 	aroundFrom := playerScore.Rank - 2
 	aroundTo := playerScore.Rank + 2
 
-	scoresAtPage, err := s.appCtx.Repo.Score.GetInRange(aroundFrom, aroundTo)
+	scoresAtPage, err := s.appCtx.Repo.Score.GetInRange(aroundFrom, aroundTo, maxDate)
 	if err != nil {
 		return nil, err
 	}
@@ -90,8 +96,8 @@ func (s *ScoreService) getAroundPlayer(
 	return scoresAtPage, nil
 }
 
-func (s *ScoreService) GetMaxPage(allTime bool) (int64, error) {
-	recordNumber, err := s.appCtx.Repo.Score.GetRecordNumber(allTime)
+func (s *ScoreService) GetMaxPage(maxDate time.Time) (int64, error) {
+	recordNumber, err := s.appCtx.Repo.Score.GetRecordNumber(maxDate)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get max page: %w", err)
 	}

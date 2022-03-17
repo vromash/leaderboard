@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc/codes"
@@ -14,13 +15,13 @@ import (
 )
 
 func (s *Server) ListScore(_ context.Context, req *leaderboard.ListScoreRequest) (*leaderboard.ListScoreResponse, error) {
-	useAllTimeRecords := s.shouldUseAllTimeRecords(req.Period)
-	page, nextPage, err := s.getPageOptions(req.Page, useAllTimeRecords)
+	scoreMaxDate := s.getScoreMaxDate(req.Period)
+	page, nextPage, err := s.getPageOptions(req.Page, scoreMaxDate)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	scores, err := s.scoreSvc.ListScores(req.Name, page)
+	scores, err := s.scoreSvc.ListScores(req.Name, page, scoreMaxDate)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -61,13 +62,19 @@ func (s *Server) SaveScore(stream leaderboard.LeaderboardService_SaveScoreServer
 	}
 }
 
-func (s *Server) shouldUseAllTimeRecords(period *leaderboard.TimePeriod) bool {
-	return period != nil && *period == leaderboard.TimePeriod_TIME_PERIOD_ALL
+func (s *Server) getScoreMaxDate(period *leaderboard.TimePeriod) time.Time {
+	if period != nil && *period == leaderboard.TimePeriod_TIME_PERIOD_ALL {
+		return time.Time{}
+	}
+
+	t := time.Now()
+	monthStart := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC)
+	return monthStart
 }
 
 // getPageOptions returns (currentPage, maxPage, error)
-func (s *Server) getPageOptions(page *int64, allTime bool) (int64, int64, error) {
-	maxPage, err := s.scoreSvc.GetMaxPage(allTime)
+func (s *Server) getPageOptions(page *int64, maxDate time.Time) (int64, int64, error) {
+	maxPage, err := s.scoreSvc.GetMaxPage(maxDate)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get page options")
 		return 0, 0, status.Error(codes.Internal, "internal error")

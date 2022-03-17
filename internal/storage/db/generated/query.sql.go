@@ -145,6 +145,54 @@ func (q *Queries) GetScoreByPlayerName(ctx context.Context, userName string) ([]
 	return items, nil
 }
 
+const getScoreByPlayerNameInTimeRange = `-- name: GetScoreByPlayerNameInTimeRange :many
+SELECT sub.name, sub.score, sub.rank
+FROM (
+         SELECT user_id,
+                score,
+                u.name,
+                ROW_NUMBER() OVER (ORDER BY "score" DESC) AS rank
+         FROM "score"
+                  LEFT JOIN "user" u ON u.id = score.user_id
+         WHERE "updated_at" > $1
+     ) AS sub
+WHERE sub.user_id = (SELECT "id" FROM "user" WHERE "name" = $2::varchar)
+`
+
+type GetScoreByPlayerNameInTimeRangeParams struct {
+	DateTo   time.Time
+	UserName string
+}
+
+type GetScoreByPlayerNameInTimeRangeRow struct {
+	Name  sql.NullString
+	Score int64
+	Rank  int64
+}
+
+func (q *Queries) GetScoreByPlayerNameInTimeRange(ctx context.Context, arg GetScoreByPlayerNameInTimeRangeParams) ([]GetScoreByPlayerNameInTimeRangeRow, error) {
+	rows, err := q.db.QueryContext(ctx, getScoreByPlayerNameInTimeRange, arg.DateTo, arg.UserName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetScoreByPlayerNameInTimeRangeRow
+	for rows.Next() {
+		var i GetScoreByPlayerNameInTimeRangeRow
+		if err := rows.Scan(&i.Name, &i.Score, &i.Rank); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getScoresInRange = `-- name: GetScoresInRange :many
 SELECT sub.name, sub.score, sub.rank
 FROM (
@@ -153,11 +201,13 @@ FROM (
                 ROW_NUMBER() OVER (ORDER BY "score" DESC) AS rank
          FROM "score"
                   LEFT JOIN "user" u ON u.id = score.user_id
+         WHERE "updated_at" > $1
      ) AS sub
-WHERE sub.rank BETWEEN $1::bigint AND $2::bigint
+WHERE sub.rank BETWEEN $2::bigint AND $3::bigint
 `
 
 type GetScoresInRangeParams struct {
+	DateTo   time.Time
 	RankFrom int64
 	RankTo   int64
 }
@@ -169,7 +219,7 @@ type GetScoresInRangeRow struct {
 }
 
 func (q *Queries) GetScoresInRange(ctx context.Context, arg GetScoresInRangeParams) ([]GetScoresInRangeRow, error) {
-	rows, err := q.db.QueryContext(ctx, getScoresInRange, arg.RankFrom, arg.RankTo)
+	rows, err := q.db.QueryContext(ctx, getScoresInRange, arg.DateTo, arg.RankFrom, arg.RankTo)
 	if err != nil {
 		return nil, err
 	}

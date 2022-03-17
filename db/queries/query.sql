@@ -24,6 +24,7 @@ FROM (
                 ROW_NUMBER() OVER (ORDER BY "score" DESC) AS rank
          FROM "score"
                   LEFT JOIN "user" u ON u.id = score.user_id
+         WHERE "updated_at" > @date_to
      ) AS sub
 WHERE sub.rank BETWEEN @rank_from::bigint AND @rank_to::bigint;
 
@@ -36,6 +37,19 @@ FROM (
                 ROW_NUMBER() OVER (ORDER BY "score" DESC) AS rank
          FROM "score"
                   LEFT JOIN "user" u ON u.id = score.user_id
+     ) AS sub
+WHERE sub.user_id = (SELECT "id" FROM "user" WHERE "name" = @user_name::varchar);
+
+-- name: GetScoreByPlayerNameInTimeRange :many
+SELECT sub.name, sub.score, sub.rank
+FROM (
+         SELECT user_id,
+                score,
+                u.name,
+                ROW_NUMBER() OVER (ORDER BY "score" DESC) AS rank
+         FROM "score"
+                  LEFT JOIN "user" u ON u.id = score.user_id
+         WHERE "updated_at" > @date_to
      ) AS sub
 WHERE sub.user_id = (SELECT "id" FROM "user" WHERE "name" = @user_name::varchar);
 

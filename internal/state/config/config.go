@@ -52,5 +52,10 @@ func SetupLogger() {
 func GetResultsPerPage() int64 {
 	var opt = viper.GetString("results_per_page")
 	resultsPerPage, _ := strconv.ParseInt(opt, 10, 64)
+
+	if resultsPerPage == 0 {
+		return 10
+	}
+
 	return resultsPerPage
 }

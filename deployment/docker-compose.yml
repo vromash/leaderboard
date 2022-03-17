@@ -1,15 +1,39 @@
 version: '3.7'
 services:
+  app:
+    container_name: leaderboard_app
+    image: leaderboard:latest
+    restart: always
+    environment:
+    - ENV=local
+    - GRPC_PORT=9090
+    - DB_HOST=leaderboard_db
+    - DB_PORT=5432
+    - DB_USER=user
+    - DB_PASSWORD=option123
+    - DB_NAME=postgres
+    ports:
+    - "9090:9090"
+    networks:
+    - leaderboard
+
   postgres:
+    container_name: leaderboard_db
     image: postgres:14
     restart: always
     environment:
     - POSTGRES_USER=user
     - POSTGRES_PASSWORD=option123
     ports:
-    - "5434:5432"
+    - "5432:5432"
     volumes:
     - postgres_data:/var/lib/postgresql/data
+    networks:
+    - leaderboard
 
 volumes:
   postgres_data:
+
+networks:
+  leaderboard:
+    driver: bridge

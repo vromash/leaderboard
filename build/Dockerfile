@@ -19,6 +19,7 @@ WORKDIR /
 COPY --from=build /main /main
 
 COPY db/migrations /db
+COPY configs /configs
 
 EXPOSE 9090
 

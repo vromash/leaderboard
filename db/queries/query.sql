@@ -1,8 +1,8 @@
 --- User ---
 
 -- name: CreateUser :exec
-INSERT INTO "user" ("name")
-VALUES (@name);
+INSERT INTO "user" ("name", "created_at")
+VALUES (@name, CURRENT_TIMESTAMP);
 
 --- Score ---
 
@@ -63,10 +63,11 @@ FROM "score"
 WHERE "updated_at" > @updated_at::timestamp;
 
 -- name: CreateScore :exec
-INSERT INTO "score" ("score", "user_id")
-VALUES (@score, (SELECT "id" FROM "user" WHERE "name" = @user_name::varchar));
+INSERT INTO "score" ("score", "user_id", "updated_at")
+VALUES (@score, (SELECT "id" FROM "user" WHERE "name" = @user_name::varchar), CURRENT_TIMESTAMP);
 
 -- name: UpdateScore :exec
 UPDATE "score"
-SET "score" = @score
+SET "score"      = @score,
+    "updated_at" = CURRENT_TIMESTAMP
 WHERE "user_id" = (SELECT "id" FROM "user" WHERE "name" = @user_name::varchar);

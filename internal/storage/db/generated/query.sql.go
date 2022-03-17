@@ -10,8 +10,8 @@ import (
 )
 
 const createScore = `-- name: CreateScore :exec
-INSERT INTO "score" ("score", "user_id")
-VALUES ($1, (SELECT "id" FROM "user" WHERE "name" = $2::varchar))
+INSERT INTO "score" ("score", "user_id", "updated_at")
+VALUES ($1, (SELECT "id" FROM "user" WHERE "name" = $2::varchar), CURRENT_TIMESTAMP)
 `
 
 type CreateScoreParams struct {
@@ -26,8 +26,8 @@ func (q *Queries) CreateScore(ctx context.Context, arg CreateScoreParams) error 
 
 const createUser = `-- name: CreateUser :exec
 
-INSERT INTO "user" ("name")
-VALUES ($1)
+INSERT INTO "user" ("name", "created_at")
+VALUES ($1, CURRENT_TIMESTAMP)
 `
 
 //- User ---
@@ -243,7 +243,8 @@ func (q *Queries) GetScoresInRange(ctx context.Context, arg GetScoresInRangePara
 
 const updateScore = `-- name: UpdateScore :exec
 UPDATE "score"
-SET "score" = $1
+SET "score"      = $1,
+    "updated_at" = CURRENT_TIMESTAMP
 WHERE "user_id" = (SELECT "id" FROM "user" WHERE "name" = $2::varchar)
 `
 

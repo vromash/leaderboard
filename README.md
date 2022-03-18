@@ -12,7 +12,9 @@ This service provides GRPC API for storing player scores and listing them.
 
 1. Build app image
 
-`docker build -t leaderboard:latest -f build/Dockerfile .`
+```
+docker build -t leaderboard:latest -f build/Dockerfile .
+```
 
 2. Start database and run migrations
 
@@ -27,7 +29,7 @@ goose postgres "host=localhost port=5432 user=user dbname=postgres password=opti
 
 ```
 cd ../seeders
-goose -no-versioning postgres "host=localhost port=5434 user=user dbname=postgres password=option123 sslmode=disable" up
+goose -no-versioning postgres "host=localhost port=5432 user=user dbname=postgres password=option123 sslmode=disable" up
 ```
 
 4. Run application
@@ -49,4 +51,4 @@ All methods use token based authentication. Token is hardcoded: `secret-token`.
 
 Proto file can be found here: `/internal/controller/protos`.
 
-To change amount of results returned by `ListScore` change option in `configs/local.yml`, rebuild app and restart it.
+To change amount of results returned by `ListScore` update option in `configs/local.yml`, rebuild app and restart it.

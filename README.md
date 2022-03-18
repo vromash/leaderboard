@@ -45,7 +45,54 @@ By default `9090` port is listening grpc calls. Can be changed in `deployments/d
 
 Application provides two methods:
 - ListScore - simple RPC
+
+```
+request:
+{
+    "name": "user1",    (optional)  
+    "page": 1,          (optional)
+    "period": 0,        (0 - monthly records, 1 - all time records)
+}
+```
+
+```
+response:
+{
+    "results": [
+        {
+            "name": "user1",
+            "score": 100,
+            "rank": 1
+        }
+    ],
+    "around_me": [
+        {
+            "name": "user2",
+            "score": 50,
+            "rank": 2
+        }
+    ],
+    "page": 2
+}
+```
+
 - SaveScore - bidirectional stream
+
+```
+request:
+{
+    "name": "user1", 
+    "score": 100
+}
+```
+
+```
+response:
+{
+    "name": "user1",
+    "rank": 1
+}
+```
 
 All methods use token based authentication. Token is hardcoded: `secret-token`.
 
